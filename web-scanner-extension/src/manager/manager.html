@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Saved Data - Web Data Scanner</title>
+        <link rel="stylesheet" href="./manager.css" />
+    </head>
+    <body>
+        <main class="page">
+            <header class="page-header">
+                <div>
+                    <h1>Saved Data</h1>
+                    <p>
+                        Manage data saved by Web Data Scanner, grouped by
+                        domain.
+                    </p>
+                </div>
+                <div class="header-actions">
+                    <button id="refresh" class="button secondary">
+                        Refresh
+                    </button>
+                    <button id="deleteSelected" class="button danger" disabled>
+                        Delete Selected
+                    </button>
+                </div>
+            </header>
+
+            <section class="toolbar">
+                <input
+                    id="search"
+                    type="search"
+                    placeholder="Search domain, title or URL..."
+                />
+                <span id="summary" class="summary">Loading...</span>
+            </section>
+
+            <div id="status" class="status"></div>
+            <section id="groups" class="groups"></section>
+        </main>
+
+        <script type="module" src="./manager.js"></script>
+    </body>
+</html>

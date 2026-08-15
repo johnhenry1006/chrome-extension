@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Web Data Scanner</title>
+        <link rel="stylesheet" href="./popup.css" />
+    </head>
+    <body>
+        <main class="app">
+            <header>
+                <h1>Web Data Scanner</h1>
+                <p>Scan a page and save the result to SQLite.</p>
+            </header>
+
+            <label>Name</label>
+            <input id="name" value="Chapter Content" />
+
+            <label>Mode</label>
+            <select id="mode">
+                <option value="single">Single</option>
+                <option value="list">List</option>
+            </select>
+
+            <label>Selector</label>
+            <input id="selector" value="#chapter-c" />
+
+            <label>Fields JSON</label>
+            <textarea id="fields" rows="8">
+{
+  "content": {
+    "type": "textWithBreaks"
+  }
+}</textarea
+            >
+
+            <div class="actions">
+                <button id="scan">Scan &amp; Save</button>
+                <button id="ping">Test SQLite</button>
+            </div>
+
+            <div class="actions">
+                <button id="viewSaved">View Saved Data</button>
+                <button id="manageSaved">Manage Saved Data</button>
+                <button id="copyResult">Copy Result</button>
+                <button id="copyConfig">Copy Config</button>
+            </div>
+
+            <div id="status" class="status"></div>
+            <pre id="output"></pre>
+        </main>
+
+        <script type="module" src="./popup.js"></script>
+    </body>
+</html>
