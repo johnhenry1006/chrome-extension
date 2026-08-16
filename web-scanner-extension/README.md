@@ -73,3 +73,18 @@ Scan
                     │
                     ▼
                Sandbox iframe
+
+## Offline navigation
+
+Offline View now supports Previous/Next navigation between saved records that belong to the same domain and the same scan configuration type. A `scan_type_key` is stored with each scan result using a stable JSON representation of the scanner configuration. Existing records are migrated from their saved config when possible; records without valid config remain in the legacy type.
+
+## Fixed in v5.2 Fixed 8
+
+Offline Previous/Next navigation now persists `scan_type_key` correctly when saving a scan. The migration also backfills classification for existing records from their saved `config_json`. Navigation matches records by domain + normalized scanner configuration type.
+
+## v0.5.9
+
+- Added an Offline View navigation filter: `All saved pages` or `Same domain + same scan type`.
+- The selected navigation filter is preserved when moving to Previous/Next.
+- Added Manager Page sorting by saved date, title, and domain.
+- Sorting is applied before grouping by domain, so the group order also follows the selected sort.

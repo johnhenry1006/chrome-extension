@@ -32,7 +32,7 @@
             >
                 <button
                     id="previousPage"
-                    class="button secondary previous"
+                    class="button secondary"
                     disabled
                 >
                     ← Previous Page
@@ -44,6 +44,15 @@
                 <button id="nextPage" class="button" disabled>
                     Next Page →
                 </button>
+                <label class="navigation-filter">
+                    <span>Filter</span>
+                    <select id="navigationFilter">
+                        <option value="all">All saved pages</option>
+                        <option value="same-domain-scan-type">
+                            Same domain + same scan type
+                        </option>
+                    </select>
+                </label>
             </nav>
 
             <section id="contentCard" class="card hidden">

@@ -239,6 +239,18 @@ function renderConfiguredData(data, config) {
     });
 }
 
+function navigationFilterMode() {
+    return $("navigationFilter").value === "same-domain-scan-type"
+        ? "same-domain-scan-type"
+        : "all";
+}
+
+function navigationFilterLabel() {
+    return navigationFilterMode() === "same-domain-scan-type"
+        ? "Same domain + same scan type"
+        : "All saved pages";
+}
+
 function renderNavigation() {
     const previous = navigation?.previous;
     const next = navigation?.next;
@@ -246,8 +258,11 @@ function renderNavigation() {
     const position = Number(navigation?.position || 0);
 
     $("navigationInfo").textContent = total
-        ? `${position} of ${total} · Same domain + same scan type`
+        ? `${position} of ${total} · ${navigationFilterLabel()}`
         : "No related saved pages.";
+
+    $("navigationFilter").value =
+        navigation?.filterMode || navigationFilterMode();
 
     $("previousPage").disabled = !previous;
     $("nextPage").disabled = !next;
@@ -263,6 +278,7 @@ async function loadNavigation(resultId) {
     const response = await chrome.runtime.sendMessage({
         type: "DB_GET_SAVED_NAVIGATION",
         resultId,
+        filterMode: navigationFilterMode(),
     });
 
     if (!response?.success) {
@@ -273,18 +289,26 @@ async function loadNavigation(resultId) {
     renderNavigation();
 }
 
-async function openOffline(resultId) {
+async function openOffline(resultId, filterMode = navigationFilterMode()) {
     if (!resultId) return;
+    const params = new URLSearchParams({
+        resultId: String(Number(resultId)),
+        filter: filterMode,
+    });
     const url = chrome.runtime.getURL(
-        `src/offline/offline.html?resultId=${Number(resultId)}`,
+        `src/offline/offline.html?${params.toString()}`,
     );
     await chrome.tabs.create({ url });
 }
 
 async function load() {
-    const resultId = Number(
-        new URLSearchParams(location.search).get("resultId"),
-    );
+    const params = new URLSearchParams(location.search);
+    const resultId = Number(params.get("resultId"));
+    const requestedFilter = params.get("filter");
+    $("navigationFilter").value =
+        requestedFilter === "same-domain-scan-type"
+            ? "same-domain-scan-type"
+            : "all";
 
     if (!Number.isInteger(resultId) || resultId <= 0) {
         status("Invalid saved record ID.");
@@ -357,12 +381,23 @@ $("openOriginal").addEventListener("click", async () => {
 
 $("previousPage").addEventListener("click", async () => {
     if (!navigation?.previous) return;
-    await openOffline(navigation.previous.result_id);
+    await openOffline(navigation.previous.result_id, navigationFilterMode());
 });
 
 $("nextPage").addEventListener("click", async () => {
     if (!navigation?.next) return;
-    await openOffline(navigation.next.result_id);
+    await openOffline(navigation.next.result_id, navigationFilterMode());
+});
+
+$("navigationFilter").addEventListener("change", async () => {
+    if (!savedRow?.result_id) return;
+    try {
+        status("Updating page navigation...");
+        await loadNavigation(savedRow.result_id);
+        status("");
+    } catch (error) {
+        status(error?.message || String(error));
+    }
 });
 
 $("copyContent").addEventListener("click", () => {

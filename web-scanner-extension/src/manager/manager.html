@@ -32,6 +32,21 @@
                     type="search"
                     placeholder="Search domain, title or URL..."
                 />
+                <label class="sort-control">
+                    <span>Sort by</span>
+                    <select id="sortBy">
+                        <option value="created-desc">
+                            Saved date (newest first)
+                        </option>
+                        <option value="created-asc">
+                            Saved date (oldest first)
+                        </option>
+                        <option value="title-asc">Title (A → Z)</option>
+                        <option value="title-desc">Title (Z → A)</option>
+                        <option value="domain-asc">Domain (A → Z)</option>
+                        <option value="domain-desc">Domain (Z → A)</option>
+                    </select>
+                </label>
                 <span id="summary" class="summary">Loading...</span>
             </section>
 

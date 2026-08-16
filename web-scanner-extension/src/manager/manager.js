@@ -57,6 +57,58 @@ function escapeHtml(value) {
         .replaceAll("'", "&#039;");
 }
 
+function compareText(a, b) {
+    return String(a || "").localeCompare(String(b || ""), undefined, {
+        numeric: true,
+        sensitivity: "base",
+    });
+}
+
+function sortRows(items) {
+    const sortBy = $("sortBy").value;
+    const result = [...items];
+
+    result.sort((a, b) => {
+        switch (sortBy) {
+            case "created-asc":
+                return (
+                    Number(a.created_at || 0) - Number(b.created_at || 0) ||
+                    Number(a.result_id || 0) - Number(b.result_id || 0)
+                );
+            case "title-asc":
+                return (
+                    compareText(a.title, b.title) ||
+                    Number(b.created_at || 0) - Number(a.created_at || 0)
+                );
+            case "title-desc":
+                return (
+                    compareText(b.title, a.title) ||
+                    Number(b.created_at || 0) - Number(a.created_at || 0)
+                );
+            case "domain-asc":
+                return (
+                    compareText(a.domain, b.domain) ||
+                    compareText(a.title, b.title) ||
+                    Number(b.created_at || 0) - Number(a.created_at || 0)
+                );
+            case "domain-desc":
+                return (
+                    compareText(b.domain, a.domain) ||
+                    compareText(a.title, b.title) ||
+                    Number(b.created_at || 0) - Number(a.created_at || 0)
+                );
+            case "created-desc":
+            default:
+                return (
+                    Number(b.created_at || 0) - Number(a.created_at || 0) ||
+                    Number(b.result_id || 0) - Number(a.result_id || 0)
+                );
+        }
+    });
+
+    return result;
+}
+
 function groupByDomain(items) {
     const groups = new Map();
 
@@ -66,7 +118,7 @@ function groupByDomain(items) {
         groups.get(domain).push(row);
     }
 
-    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    return [...groups.entries()];
 }
 
 function updateSelectionState() {
@@ -206,6 +258,7 @@ function applySearch() {
         });
     }
 
+    filteredRows = sortRows(filteredRows);
     render();
 }
 
@@ -279,6 +332,7 @@ async function deleteSelected() {
 
 $("refresh").addEventListener("click", load);
 $("search").addEventListener("input", applySearch);
+$("sortBy").addEventListener("change", applySearch);
 $("deleteSelected").addEventListener("click", deleteSelected);
 
 load();

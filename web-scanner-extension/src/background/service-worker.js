@@ -68,6 +68,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         databaseRequest({
             action: "get_saved_navigation",
             resultId: message.resultId,
+            filterMode: message.filterMode,
         })
             .then((result) => sendResponse({ success: true, result }))
             .catch((error) =>
