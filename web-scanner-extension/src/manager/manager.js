@@ -20,6 +20,22 @@ function parseData(row) {
     }
 }
 
+function parseConfig(row) {
+    try {
+        return JSON.parse(row.config_json);
+    } catch {
+        return null;
+    }
+}
+
+function scanTypeLabel(row) {
+    const config = parseConfig(row);
+    if (!config) return "Legacy";
+    const mode = config.mode || "single";
+    const selector = config.selector ? ` · ${config.selector}` : "";
+    return `${mode}${selector}`;
+}
+
 function previewData(row) {
     const data = parseData(row);
     if (!data) return row.data_json || "";
@@ -119,7 +135,7 @@ function render() {
         <div class="record-main">
           <div class="record-title">${escapeHtml(row.title || "(Untitled)")}</div>
           <div class="record-url">${escapeHtml(row.url)}</div>
-          <div class="record-meta">Saved: ${escapeHtml(formatDate(row.created_at))} · Result #${Number(row.result_id)}</div>
+          <div class="record-meta">Saved: ${escapeHtml(formatDate(row.created_at))} · Result #${Number(row.result_id)} · Type: ${escapeHtml(scanTypeLabel(row))}</div>
           <div class="record-preview">${escapeHtml(preview)}</div>
         </div>
         <div class="record-actions">

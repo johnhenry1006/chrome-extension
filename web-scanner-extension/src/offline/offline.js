@@ -1,6 +1,7 @@
 const $ = (id) => document.getElementById(id);
 
 let savedRow = null;
+let navigation = null;
 let contentText = "";
 let jsonText = "";
 
@@ -18,8 +19,7 @@ function parseJson(value, fallback = null) {
 }
 
 function parseData(row) {
-    const parsed = parseJson(row.data_json, row.data_json || null);
-    return parsed;
+    return parseJson(row.data_json, row.data_json || null);
 }
 
 function parseConfig(row) {
@@ -206,7 +206,6 @@ function renderConfiguredData(data, config) {
         fallback.textContent =
             "This saved record does not contain scanner configuration. Showing content as plain text.";
         container.appendChild(fallback);
-
         container.appendChild(createTextRenderer(extractContent(data), "text"));
         return;
     }
@@ -238,6 +237,48 @@ function renderConfiguredData(data, config) {
 
         container.appendChild(itemContainer);
     });
+}
+
+function renderNavigation() {
+    const previous = navigation?.previous;
+    const next = navigation?.next;
+    const total = Number(navigation?.total || 0);
+    const position = Number(navigation?.position || 0);
+
+    $("navigationInfo").textContent = total
+        ? `${position} of ${total} · Same domain + same scan type`
+        : "No related saved pages.";
+
+    $("previousPage").disabled = !previous;
+    $("nextPage").disabled = !next;
+    $("previousPage").title = previous
+        ? `Previous: ${previous.title || previous.url}`
+        : "No previous page";
+    $("nextPage").title = next
+        ? `Next: ${next.title || next.url}`
+        : "No next page";
+}
+
+async function loadNavigation(resultId) {
+    const response = await chrome.runtime.sendMessage({
+        type: "DB_GET_SAVED_NAVIGATION",
+        resultId,
+    });
+
+    if (!response?.success) {
+        throw new Error(response?.error || "Failed to load page navigation.");
+    }
+
+    navigation = response.result;
+    renderNavigation();
+}
+
+async function openOffline(resultId) {
+    if (!resultId) return;
+    const url = chrome.runtime.getURL(
+        `src/offline/offline.html?resultId=${Number(resultId)}`,
+    );
+    await chrome.tabs.create({ url });
 }
 
 async function load() {
@@ -290,6 +331,9 @@ async function load() {
         $("contentCard").classList.remove("hidden");
         $("dataCard").classList.remove("hidden");
         $("openOriginal").disabled = false;
+
+        await loadNavigation(resultId);
+
         status(
             config
                 ? "Loaded from local SQLite. Fields are rendered using the saved scan configuration."
@@ -309,6 +353,16 @@ $("back").addEventListener("click", async () => {
 $("openOriginal").addEventListener("click", async () => {
     if (!savedRow?.url) return;
     await chrome.tabs.create({ url: savedRow.url });
+});
+
+$("previousPage").addEventListener("click", async () => {
+    if (!navigation?.previous) return;
+    await openOffline(navigation.previous.result_id);
+});
+
+$("nextPage").addEventListener("click", async () => {
+    if (!navigation?.next) return;
+    await openOffline(navigation.next.result_id);
 });
 
 $("copyContent").addEventListener("click", () => {

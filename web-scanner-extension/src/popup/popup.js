@@ -6,7 +6,7 @@ let lastAppliedSample = null;
 const FIELD_SAMPLES = {
     single: {
         content: {
-            type: "textWithBreaks",
+            type: "html",
         },
     },
     list: {
@@ -16,7 +16,7 @@ const FIELD_SAMPLES = {
         },
         content: {
             selector: ".content",
-            type: "textWithBreaks",
+            type: "html",
         },
     },
 };

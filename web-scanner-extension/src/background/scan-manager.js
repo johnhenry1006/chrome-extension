@@ -1,5 +1,23 @@
 import { databaseRequest } from "./database-client.js";
 
+function stableNormalize(value) {
+    if (Array.isArray(value)) return value.map(stableNormalize);
+    if (value && typeof value === "object") {
+        return Object.keys(value)
+            .sort()
+            .reduce((result, key) => {
+                result[key] = stableNormalize(value[key]);
+                return result;
+            }, {});
+    }
+    return value;
+}
+
+export function buildScanTypeKey(config) {
+    if (!config || typeof config !== "object") return "legacy";
+    return JSON.stringify(stableNormalize(config));
+}
+
 export async function scanCurrentTab(config) {
     const [tab] = await chrome.tabs.query({
         active: true,
@@ -43,6 +61,7 @@ export async function scanCurrentTab(config) {
         page: result.page,
         data: result.data,
         config,
+        scanTypeKey: buildScanTypeKey(config),
     });
 
     return {

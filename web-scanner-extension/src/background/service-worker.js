@@ -64,6 +64,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message?.type === "DB_GET_SAVED_NAVIGATION") {
+        databaseRequest({
+            action: "get_saved_navigation",
+            resultId: message.resultId,
+        })
+            .then((result) => sendResponse({ success: true, result }))
+            .catch((error) =>
+                sendResponse({
+                    success: false,
+                    error: error?.message || String(error),
+                }),
+            );
+
+        return true;
+    }
+
     if (message?.type === "DB_DELETE_SAVED") {
         databaseRequest({
             action: "delete_saved",
