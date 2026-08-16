@@ -60,6 +60,70 @@ function setFieldsSample(mode) {
     updateFieldsState();
 }
 
+function updateGroupUI() {
+    const type = $("groupType").value;
+    const isSelector = type === "selector";
+    const isMeta = type === "meta";
+
+    $("groupSelectorRow").classList.toggle("hidden", !(isSelector || isMeta));
+    $("groupAttributeRow").classList.toggle("hidden", !isSelector);
+    $("groupPatternRow").classList.toggle("hidden", type !== "url-pattern");
+    $("groupValueRow").classList.toggle("hidden", type !== "constant");
+    $("groupFieldRow").classList.toggle("hidden", type !== "field");
+
+    if (isMeta) {
+        $("groupSelectorLabel").textContent = "Meta selector";
+        $("groupSelector").placeholder = 'meta[property="og:title"]';
+    } else {
+        $("groupSelectorLabel").textContent = "Story name selector";
+        $("groupSelector").placeholder = ".story-title";
+    }
+}
+
+function groupConfig() {
+    const type = $("groupType").value;
+    if (type === "none") return { enabled: false, type: "none" };
+
+    if (type === "selector") {
+        return {
+            enabled: true,
+            type,
+            selector: $("groupSelector").value.trim(),
+            attribute: $("groupAttribute").value.trim(),
+        };
+    }
+
+    if (type === "meta") {
+        return {
+            enabled: true,
+            type,
+            selector: $("groupSelector").value.trim(),
+        };
+    }
+
+    if (type === "url-pattern") {
+        return {
+            enabled: true,
+            type,
+            pattern: $("groupPattern").value.trim(),
+        };
+    }
+
+    if (type === "field") {
+        return {
+            enabled: true,
+            type,
+            field: $("groupField").value.trim(),
+        };
+    }
+
+    return {
+        enabled: true,
+        type,
+        value: $("groupValue").value.trim(),
+    };
+}
+
 function config() {
     let fields;
 
@@ -69,10 +133,30 @@ function config() {
         throw new Error("Fields JSON is invalid.");
     }
 
+    const group = groupConfig();
+    if (group.type === "selector" || group.type === "meta") {
+        if (!group.selector) throw new Error("Group selector is required.");
+    }
+    if (group.type === "url-pattern") {
+        if (!group.pattern) throw new Error("Group URL pattern is required.");
+        try {
+            new RegExp(group.pattern);
+        } catch {
+            throw new Error("Group URL pattern is invalid.");
+        }
+    }
+    if (group.type === "constant" && !group.value) {
+        throw new Error("Group value is required.");
+    }
+    if (group.type === "field" && !group.field) {
+        throw new Error("Extracted field name is required.");
+    }
+
     return {
         name: $("name").value.trim() || "Untitled",
         mode: $("mode").value,
         selector: $("selector").value.trim(),
+        group: groupConfig(),
         fields,
     };
 }
@@ -84,6 +168,8 @@ function status(message) {
 function output(value) {
     $("output").textContent = JSON.stringify(value, null, 2);
 }
+
+$("groupType").addEventListener("change", updateGroupUI);
 
 $("mode").addEventListener("change", () => {
     const mode = $("mode").value;
@@ -223,3 +309,4 @@ $("copyConfig").onclick = async () => {
 
 lastAppliedSample = normalizeJson($("fields").value);
 updateFieldsState();
+updateGroupUI();

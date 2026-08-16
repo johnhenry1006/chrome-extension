@@ -240,15 +240,31 @@ function renderConfiguredData(data, config) {
 }
 
 function navigationFilterMode() {
-    return $("navigationFilter").value === "same-domain-scan-type"
-        ? "same-domain-scan-type"
-        : "all";
+    const value = $("navigationFilter").value;
+    return [
+        "same-group",
+        "same-domain",
+        "same-domain-group",
+        "same-domain-scan-type",
+        "all",
+    ].includes(value)
+        ? value
+        : "same-group";
 }
 
 function navigationFilterLabel() {
-    return navigationFilterMode() === "same-domain-scan-type"
-        ? "Same domain + same scan type"
-        : "All saved pages";
+    switch (navigationFilterMode()) {
+        case "same-group":
+            return "Same story / group";
+        case "same-domain":
+            return "Same domain";
+        case "same-domain-group":
+            return "Same domain + same story / group";
+        case "same-domain-scan-type":
+            return "Same domain + same scan type";
+        default:
+            return "All saved pages";
+    }
 }
 
 function renderNavigation() {
@@ -256,10 +272,15 @@ function renderNavigation() {
     const next = navigation?.next;
     const total = Number(navigation?.total || 0);
     const position = Number(navigation?.position || 0);
+    const groupLabel = navigation?.groupName
+        ? ` · ${navigation.groupName}`
+        : "";
 
     $("navigationInfo").textContent = total
-        ? `${position} of ${total} · ${navigationFilterLabel()}`
-        : "No related saved pages.";
+        ? `${position} of ${total} · ${navigationFilterLabel()}${groupLabel}`
+        : navigation?.filterLabel
+          ? `${navigation.filterLabel} · No related saved pages.`
+          : "No related saved pages.";
 
     $("navigationFilter").value =
         navigation?.filterMode || navigationFilterMode();
@@ -305,10 +326,16 @@ async function load() {
     const params = new URLSearchParams(location.search);
     const resultId = Number(params.get("resultId"));
     const requestedFilter = params.get("filter");
-    $("navigationFilter").value =
-        requestedFilter === "same-domain-scan-type"
-            ? "same-domain-scan-type"
-            : "all";
+    const allowedFilters = [
+        "all",
+        "same-group",
+        "same-domain",
+        "same-domain-group",
+        "same-domain-scan-type",
+    ];
+    $("navigationFilter").value = allowedFilters.includes(requestedFilter)
+        ? requestedFilter
+        : "same-group";
 
     if (!Number.isInteger(resultId) || resultId <= 0) {
         status("Invalid saved record ID.");
@@ -346,6 +373,7 @@ async function load() {
             savedRow.domain || "Unknown domain",
             savedRow.url,
             config?.mode ? `Mode: ${config.mode}` : "Legacy scan",
+            savedRow.group_name ? `Story: ${savedRow.group_name}` : "Story: —",
             `Saved ${formatDate(savedRow.created_at)}`,
             `Result #${savedRow.result_id}`,
         ].join(" · ");

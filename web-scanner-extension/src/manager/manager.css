@@ -223,3 +223,12 @@ p {
         grid-column: 2;
     }
 }
+
+.record-group {
+    color: #4b5563;
+    font-size: 11px;
+    margin-top: 5px;
+}
+.record-group strong {
+    color: #111827;
+}

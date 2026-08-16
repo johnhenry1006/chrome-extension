@@ -3,35 +3,76 @@ import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 let dbPromise;
 let wasmUrl = null;
 
-function stableNormalize(value) {
-    if (Array.isArray(value)) return value.map(stableNormalize);
-    if (value && typeof value === "object") {
-        return Object.keys(value)
-            .sort()
-            .reduce((result, key) => {
-                result[key] = stableNormalize(value[key]);
-                return result;
-            }, {});
-    }
-    return value;
-}
-
 function buildScanTypeKey(config) {
     if (!config || typeof config !== "object") return "legacy";
-    return JSON.stringify(stableNormalize(config));
+
+    const fields =
+        config.fields && typeof config.fields === "object"
+            ? Object.keys(config.fields)
+                  .sort()
+                  .reduce((result, name) => {
+                      const field = config.fields[name] || {};
+                      result[name] = {
+                          type: field.type || "text",
+                          scope: field.scope || "root",
+                          attribute:
+                              field.type === "attribute"
+                                  ? field.attribute || ""
+                                  : "",
+                      };
+                      return result;
+                  }, {})
+            : {};
+
+    return JSON.stringify({
+        mode: config.mode || "single",
+        fields,
+    });
+}
+
+function normalizeDomain(domain) {
+    return String(domain || "")
+        .trim()
+        .toLowerCase()
+        .replace(/^www\./, "");
+}
+
+function normalizeGroupName(value) {
+    return String(value ?? "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function buildGroupKey(value) {
+    const name = normalizeGroupName(value);
+    if (!name) return null;
+
+    const ascii = name
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+    return ascii || name.toLowerCase();
+}
+
+function legacyGroupFromConfig(config) {
+    if (!config?.group || typeof config.group !== "object") return null;
+    if (config.group.type === "constant")
+        return normalizeGroupName(config.group.value);
+    return null;
 }
 
 async function getDb() {
     if (!dbPromise) {
-        if (!wasmUrl) {
+        if (!wasmUrl)
             throw new Error("SQLite WASM URL has not been initialized.");
-        }
 
         dbPromise = (async () => {
             const sqlite3 = await sqlite3InitModule({
                 locateFile: () => wasmUrl,
             });
-
             const db = new sqlite3.oo1.OpfsDb("/web-scanner.sqlite3");
 
             db.exec(`
@@ -60,8 +101,7 @@ async function getDb() {
         CREATE INDEX IF NOT EXISTS idx_results_created_at ON scan_results(created_at);
       `);
 
-            // Keep existing databases backward-compatible when config_json is added.
-            const columns = db.exec({
+            let columns = db.exec({
                 sql: "PRAGMA table_info(scan_results)",
                 returnValue: "resultRows",
                 rowMode: "object",
@@ -70,43 +110,72 @@ async function getDb() {
             if (!columns.some((column) => column.name === "config_json")) {
                 db.exec("ALTER TABLE scan_results ADD COLUMN config_json TEXT");
             }
-
             if (!columns.some((column) => column.name === "scan_type_key")) {
                 db.exec(
                     "ALTER TABLE scan_results ADD COLUMN scan_type_key TEXT",
                 );
             }
+            if (!columns.some((column) => column.name === "group_name")) {
+                db.exec("ALTER TABLE scan_results ADD COLUMN group_name TEXT");
+            }
+            if (!columns.some((column) => column.name === "group_key")) {
+                db.exec("ALTER TABLE scan_results ADD COLUMN group_key TEXT");
+            }
 
-            // Backfill classification for records created before scan_type_key existed.
-            const unclassifiedRows = db.exec({
+            // Re-read columns after migration so subsequent logic sees the final schema.
+            columns = db.exec({
+                sql: "PRAGMA table_info(scan_results)",
+                returnValue: "resultRows",
+                rowMode: "object",
+            });
+
+            const unclassified = db.exec({
                 sql: `
-          SELECT id, config_json
+          SELECT id, config_json, scan_type_key, group_name, group_key
           FROM scan_results
-          WHERE scan_type_key IS NULL
+          WHERE scan_type_key IS NULL OR group_key IS NULL
         `,
                 returnValue: "resultRows",
                 rowMode: "object",
             });
 
-            for (const row of unclassifiedRows) {
-                let key = "legacy";
+            for (const row of unclassified) {
+                let scanTypeKey = row.scan_type_key || "legacy";
+                let groupName = normalizeGroupName(row.group_name);
+                let groupKey = row.group_key || null;
 
                 if (row.config_json) {
                     try {
-                        key = buildScanTypeKey(JSON.parse(row.config_json));
+                        const config = JSON.parse(row.config_json);
+                        if (!row.scan_type_key)
+                            scanTypeKey = buildScanTypeKey(config);
+                        if (!groupName)
+                            groupName = legacyGroupFromConfig(config) || "";
+                        if (!groupKey && groupName)
+                            groupKey = buildGroupKey(groupName);
                     } catch {
-                        key = "legacy";
+                        // Keep legacy values when old JSON is invalid.
                     }
                 }
 
                 db.exec({
-                    sql: "UPDATE scan_results SET scan_type_key = ? WHERE id = ?",
-                    bind: [key, row.id],
+                    sql: `
+            UPDATE scan_results
+            SET scan_type_key = ?, group_name = ?, group_key = ?
+            WHERE id = ?
+          `,
+                    bind: [scanTypeKey, groupName || null, groupKey, row.id],
                 });
             }
 
             db.exec(
                 "CREATE INDEX IF NOT EXISTS idx_results_type_key ON scan_results(scan_type_key)",
+            );
+            db.exec(
+                "CREATE INDEX IF NOT EXISTS idx_results_group_key ON scan_results(group_key)",
+            );
+            db.exec(
+                "CREATE INDEX IF NOT EXISTS idx_results_group_domain ON scan_results(group_key, page_id)",
             );
 
             return db;
@@ -130,6 +199,8 @@ async function handle(request) {
             const now = Date.now();
             let pageId;
             let resultId;
+            const groupName = normalizeGroupName(request.groupName);
+            const groupKey = request.groupKey || buildGroupKey(groupName);
 
             db.exec("BEGIN");
 
@@ -142,7 +213,7 @@ async function handle(request) {
                     bind: [
                         request.page.url,
                         request.page.title || null,
-                        request.page.domain || null,
+                        normalizeDomain(request.page.domain) || null,
                         now,
                     ],
                 });
@@ -151,8 +222,16 @@ async function handle(request) {
 
                 db.exec({
                     sql: `
-            INSERT INTO scan_results (page_id, data_json, config_json, created_at, scan_type_key)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO scan_results (
+              page_id,
+              data_json,
+              config_json,
+              created_at,
+              scan_type_key,
+              group_name,
+              group_key
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
           `,
                     bind: [
                         pageId,
@@ -160,6 +239,8 @@ async function handle(request) {
                         request.config ? JSON.stringify(request.config) : null,
                         now,
                         request.scanTypeKey || buildScanTypeKey(request.config),
+                        groupName || null,
+                        groupKey,
                     ],
                 });
 
@@ -168,21 +249,17 @@ async function handle(request) {
             } catch (error) {
                 try {
                     db.exec("ROLLBACK");
-                } catch {
-                    // Ignore rollback errors and report the original error.
-                }
+                } catch {}
                 throw error;
             }
 
-            return { pageId, resultId };
+            return { pageId, resultId, groupName: groupName || null, groupKey };
         }
 
         case "get_saved": {
             const resultId = Number(request.resultId);
-
-            if (!Number.isInteger(resultId) || resultId <= 0) {
+            if (!Number.isInteger(resultId) || resultId <= 0)
                 throw new Error("Invalid saved record ID.");
-            }
 
             const rows = db.exec({
                 sql: `
@@ -196,7 +273,9 @@ async function handle(request) {
             sr.created_at,
             sr.data_json,
             sr.config_json,
-            sr.scan_type_key
+            sr.scan_type_key,
+            sr.group_name,
+            sr.group_key
           FROM scan_results sr
           INNER JOIN pages p ON p.id = sr.page_id
           WHERE sr.id = ?
@@ -228,10 +307,12 @@ async function handle(request) {
             sr.created_at,
             sr.data_json,
             sr.config_json,
-            sr.scan_type_key
+            sr.scan_type_key,
+            sr.group_name,
+            sr.group_key
           FROM scan_results sr
           INNER JOIN pages p ON p.id = sr.page_id
-          ORDER BY sr.created_at DESC
+          ORDER BY sr.created_at DESC, sr.id DESC
           LIMIT ?
         `,
                 bind: [limit],
@@ -242,10 +323,8 @@ async function handle(request) {
 
         case "get_saved_navigation": {
             const resultId = Number(request.resultId);
-
-            if (!Number.isInteger(resultId) || resultId <= 0) {
+            if (!Number.isInteger(resultId) || resultId <= 0)
                 throw new Error("Invalid saved record ID.");
-            }
 
             const current = db.exec({
                 sql: `
@@ -253,6 +332,8 @@ async function handle(request) {
             sr.id AS result_id,
             p.domain,
             sr.scan_type_key,
+            sr.group_name,
+            sr.group_key,
             sr.created_at
           FROM scan_results sr
           INNER JOIN pages p ON p.id = sr.page_id
@@ -266,14 +347,46 @@ async function handle(request) {
 
             if (!current) return null;
 
-            const sameDomainAndType =
-                request.filterMode === "same-domain-scan-type";
-            const whereClause = sameDomainAndType
-                ? "WHERE p.domain = ? AND sr.scan_type_key = ?"
-                : "";
-            const bind = sameDomainAndType
-                ? [current.domain || "", current.scan_type_key || "legacy"]
-                : [];
+            const mode = request.filterMode || "all";
+            const normalizedDomain = normalizeDomain(current.domain);
+            const groupKey = current.group_key || null;
+            const scanTypeKey = current.scan_type_key || "legacy";
+
+            let whereClause = "";
+            let bind = [];
+            let filterLabel = "All saved pages";
+
+            switch (mode) {
+                case "same-group":
+                    whereClause =
+                        "WHERE sr.group_key IS NOT NULL AND sr.group_key = ?";
+                    bind = [groupKey];
+                    filterLabel = "Same story / group";
+                    break;
+                case "same-domain":
+                    whereClause = `WHERE lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) = ?`;
+                    bind = [normalizedDomain];
+                    filterLabel = "Same domain";
+                    break;
+                case "same-domain-group":
+                    if (groupKey) {
+                        whereClause = `WHERE lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) = ? AND sr.group_key = ?`;
+                        bind = [normalizedDomain, groupKey];
+                    } else {
+                        whereClause = `WHERE lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) = ? AND sr.group_key IS NULL`;
+                        bind = [normalizedDomain];
+                    }
+                    filterLabel = "Same domain + same story / group";
+                    break;
+                case "same-domain-scan-type":
+                    whereClause = `WHERE lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) = ? AND COALESCE(sr.scan_type_key, 'legacy') = ?`;
+                    bind = [normalizedDomain, scanTypeKey];
+                    filterLabel = "Same domain + same scan type";
+                    break;
+                case "all":
+                default:
+                    break;
+            }
 
             const rows = db.exec({
                 sql: `
@@ -283,6 +396,8 @@ async function handle(request) {
             p.url,
             p.domain,
             sr.scan_type_key,
+            sr.group_name,
+            sr.group_key,
             sr.created_at
           FROM scan_results sr
           INNER JOIN pages p ON p.id = sr.page_id
@@ -297,6 +412,7 @@ async function handle(request) {
             const index = rows.findIndex(
                 (row) => Number(row.result_id) === resultId,
             );
+
             if (index < 0) {
                 return {
                     current: null,
@@ -304,6 +420,8 @@ async function handle(request) {
                     next: null,
                     total: 0,
                     position: 0,
+                    filterMode: mode,
+                    filterLabel,
                 };
             }
 
@@ -313,9 +431,12 @@ async function handle(request) {
                 next: rows[index + 1] || null,
                 total: rows.length,
                 position: index + 1,
-                domain: current.domain || "Unknown domain",
-                scanTypeKey: current.scan_type_key || "legacy",
-                filterMode: sameDomainAndType ? "same-domain-scan-type" : "all",
+                domain: normalizedDomain || "Unknown domain",
+                groupName: current.group_name || null,
+                groupKey,
+                scanTypeKey,
+                filterMode: mode,
+                filterLabel,
             };
         }
 
@@ -329,37 +450,25 @@ async function handle(request) {
                       ),
                   ]
                 : [];
-
-            if (!ids.length) {
-                return { deletedCount: 0, deletedPageCount: 0 };
-            }
+            if (!ids.length) return { deletedCount: 0, deletedPageCount: 0 };
 
             const placeholders = ids.map(() => "?").join(", ");
             let deletedCount = 0;
             let deletedPageCount = 0;
 
             db.exec("BEGIN");
-
             try {
                 const pageRows = db.exec({
-                    sql: `
-            SELECT DISTINCT page_id
-            FROM scan_results
-            WHERE id IN (${placeholders})
-          `,
+                    sql: `SELECT DISTINCT page_id FROM scan_results WHERE id IN (${placeholders})`,
                     bind: ids,
                     returnValue: "resultRows",
                     rowMode: "object",
                 });
 
                 db.exec({
-                    sql: `
-            DELETE FROM scan_results
-            WHERE id IN (${placeholders})
-          `,
+                    sql: `DELETE FROM scan_results WHERE id IN (${placeholders})`,
                     bind: ids,
                 });
-
                 deletedCount = db.selectValue("SELECT changes()");
 
                 for (const row of pageRows) {
@@ -367,7 +476,6 @@ async function handle(request) {
                         "SELECT COUNT(*) FROM scan_results WHERE page_id = ?",
                         [row.page_id],
                     );
-
                     if (Number(remaining) === 0) {
                         db.exec({
                             sql: "DELETE FROM pages WHERE id = ?",
@@ -381,9 +489,7 @@ async function handle(request) {
             } catch (error) {
                 try {
                     db.exec("ROLLBACK");
-                } catch {
-                    // Ignore rollback errors and report the original error.
-                }
+                } catch {}
                 throw error;
             }
 
@@ -401,13 +507,8 @@ self.addEventListener("message", async (event) => {
     if (message.type === "INIT") {
         try {
             wasmUrl = message.wasmUrl;
-
-            if (!wasmUrl) {
-                throw new Error("Missing SQLite WASM URL.");
-            }
-
+            if (!wasmUrl) throw new Error("Missing SQLite WASM URL.");
             await getDb();
-
             self.postMessage({ type: "READY" });
         } catch (error) {
             self.postMessage({
@@ -415,7 +516,6 @@ self.addEventListener("message", async (event) => {
                 error: error?.message || String(error),
             });
         }
-
         return;
     }
 

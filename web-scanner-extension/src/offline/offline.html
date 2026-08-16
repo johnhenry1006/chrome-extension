@@ -30,11 +30,7 @@
                 class="page-navigation card"
                 aria-label="Offline page navigation"
             >
-                <button
-                    id="previousPage"
-                    class="button secondary"
-                    disabled
-                >
+                <button id="previousPage" class="button secondary" disabled>
                     ← Previous Page
                 </button>
                 <div class="navigation-center">
@@ -47,10 +43,15 @@
                 <label class="navigation-filter">
                     <span>Filter</span>
                     <select id="navigationFilter">
-                        <option value="all">All saved pages</option>
+                        <option value="same-group" selected>Same story / group</option>
+                        <option value="same-domain">Same domain</option>
+                        <option value="same-domain-group">
+                            Same domain + same story / group
+                        </option>
                         <option value="same-domain-scan-type">
                             Same domain + same scan type
                         </option>
+                        <option value="all">All saved pages</option>
                     </select>
                 </label>
             </nav>

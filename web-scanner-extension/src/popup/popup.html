@@ -25,6 +25,66 @@
             <label>Selector</label>
             <input id="selector" value="#chapter-c" />
 
+            <section class="group-config">
+                <div class="field-header">
+                    <div class="field-title">
+                        <label for="groupType">Group / Story</label>
+                        <span id="groupHint"
+                            >Optional. Use this to identify pages that belong to
+                            the same story.</span
+                        >
+                    </div>
+                </div>
+
+                <select id="groupType">
+                    <option value="none">None</option>
+                    <option value="selector">Text from selector</option>
+                    <option value="meta">Meta tag content</option>
+                    <option value="url-pattern">URL pattern</option>
+                    <option value="constant" selected>Constant value</option>
+                    <option value="field">Extracted field</option>
+                </select>
+
+                <div id="groupSelectorRow" class="group-input-row">
+                    <label id="groupSelectorLabel">Story name selector</label>
+                    <input
+                        id="groupSelector"
+                        value=".story-title"
+                        placeholder=".story-title"
+                    />
+                </div>
+
+                <div id="groupAttributeRow" class="group-input-row hidden">
+                    <label>Attribute (optional)</label>
+                    <input id="groupAttribute" placeholder="data-story-name" />
+                </div>
+
+                <div id="groupPatternRow" class="group-input-row hidden">
+                    <label>Regex pattern</label>
+                    <input
+                        id="groupPattern"
+                        placeholder="/story/([^/]+)/chapter/"
+                    />
+                    <small
+                        >Use the first capture group as the story name.</small
+                    >
+                </div>
+
+                <div id="groupValueRow" class="group-input-row hidden">
+                    <label>Group value</label>
+                    <input id="groupValue" placeholder="My Story" />
+                </div>
+
+                <div id="groupFieldRow" class="group-input-row hidden">
+                    <label>Extracted field name</label>
+                    <input id="groupField" placeholder="storyName" />
+                    <small
+                        >Uses a field from the scan result, e.g.
+                        <code>storyName</code>.</small
+                    >
+                </div>
+            </section>
+
             <div class="field-header">
                 <div class="field-title">
                     <label for="fields">Fields JSON</label>

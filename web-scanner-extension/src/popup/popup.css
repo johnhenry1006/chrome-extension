@@ -113,3 +113,27 @@ pre {
 .secondary-button:hover {
     background: #f0f0f0;
 }
+
+.group-config {
+    margin: 14px 0 18px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fafafa;
+}
+.group-config select,
+.group-config input {
+    width: 100%;
+    margin-top: 6px;
+}
+.group-input-row {
+    margin-top: 10px;
+}
+.group-input-row.hidden {
+    display: none;
+}
+.group-input-row small {
+    display: block;
+    margin-top: 5px;
+    color: #777;
+}

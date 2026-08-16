@@ -1,21 +1,52 @@
 import { databaseRequest } from "./database-client.js";
 
-function stableNormalize(value) {
-    if (Array.isArray(value)) return value.map(stableNormalize);
-    if (value && typeof value === "object") {
-        return Object.keys(value)
-            .sort()
-            .reduce((result, key) => {
-                result[key] = stableNormalize(value[key]);
-                return result;
-            }, {});
-    }
-    return value;
-}
-
 export function buildScanTypeKey(config) {
     if (!config || typeof config !== "object") return "legacy";
-    return JSON.stringify(stableNormalize(config));
+
+    const fields =
+        config.fields && typeof config.fields === "object"
+            ? Object.keys(config.fields)
+                  .sort()
+                  .reduce((result, name) => {
+                      const field = config.fields[name] || {};
+                      result[name] = {
+                          type: field.type || "text",
+                          scope: field.scope || "root",
+                          attribute:
+                              field.type === "attribute"
+                                  ? field.attribute || ""
+                                  : "",
+                      };
+                      return result;
+                  }, {})
+            : {};
+
+    return JSON.stringify({
+        mode: config.mode || "single",
+        fields,
+    });
+}
+
+export function normalizeGroupName(value) {
+    return String(value ?? "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+export function buildGroupKey(value) {
+    const name = normalizeGroupName(value);
+    if (!name) return null;
+
+    const ascii = name
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+    if (ascii) return ascii;
+
+    return name.toLowerCase();
 }
 
 export async function scanCurrentTab(config) {
@@ -24,9 +55,7 @@ export async function scanCurrentTab(config) {
         currentWindow: true,
     });
 
-    if (!tab?.id) {
-        throw new Error("No active tab.");
-    }
+    if (!tab?.id) throw new Error("No active tab.");
 
     if (!/^https?:$/.test(new URL(tab.url || "").protocol)) {
         throw new Error("Only normal http/https pages can be scanned.");
@@ -39,7 +68,7 @@ export async function scanCurrentTab(config) {
             type: "SCAN_PAGE",
             config,
         });
-    } catch (error) {
+    } catch {
         await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             files: ["src/content/content.js"],
@@ -55,17 +84,22 @@ export async function scanCurrentTab(config) {
         throw new Error(result?.error || "Scan failed.");
     }
 
-    // Persist the page and its scan result as one database operation.
+    const groupName = normalizeGroupName(result.group?.name);
+    const groupKey = buildGroupKey(groupName);
+
     const saved = await databaseRequest({
         action: "save_scan",
         page: result.page,
         data: result.data,
         config,
         scanTypeKey: buildScanTypeKey(config),
+        groupName,
+        groupKey,
     });
 
     return {
         ...result,
+        group: groupName ? { name: groupName, key: groupKey } : null,
         saved: true,
         pageId: saved.pageId,
         resultId: saved.resultId,

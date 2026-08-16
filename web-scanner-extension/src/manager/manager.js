@@ -97,6 +97,18 @@ function sortRows(items) {
                     compareText(a.title, b.title) ||
                     Number(b.created_at || 0) - Number(a.created_at || 0)
                 );
+            case "group-asc":
+                return (
+                    compareText(a.group_name, b.group_name) ||
+                    compareText(a.domain, b.domain) ||
+                    compareText(a.title, b.title)
+                );
+            case "group-desc":
+                return (
+                    compareText(b.group_name, a.group_name) ||
+                    compareText(a.domain, b.domain) ||
+                    compareText(a.title, b.title)
+                );
             case "created-desc":
             default:
                 return (
@@ -188,6 +200,7 @@ function render() {
           <div class="record-title">${escapeHtml(row.title || "(Untitled)")}</div>
           <div class="record-url">${escapeHtml(row.url)}</div>
           <div class="record-meta">Saved: ${escapeHtml(formatDate(row.created_at))} · Result #${Number(row.result_id)} · Type: ${escapeHtml(scanTypeLabel(row))}</div>
+          <div class="record-group">${row.group_name ? `Story / group: <strong>${escapeHtml(row.group_name)}</strong>` : "Story / group: —"}</div>
           <div class="record-preview">${escapeHtml(preview)}</div>
         </div>
         <div class="record-actions">
