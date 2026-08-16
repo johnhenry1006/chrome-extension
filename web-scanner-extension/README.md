@@ -33,3 +33,13 @@ dist/
 ```
 
 The extension uses an Offscreen Document to create the SQLite dedicated Worker because MV3 Service Workers cannot construct a `Worker` directly.
+
+## Fields JSON behavior
+
+The popup preserves custom Fields JSON when the Mode changes.
+
+- If Fields JSON is still the generated sample for the current mode, changing Mode automatically applies the sample for the new mode.
+- If Fields JSON has been edited, changing Mode keeps the user's custom JSON unchanged.
+- When custom JSON is preserved, `Reset Fields Sample` becomes available.
+- Clicking `Reset Fields Sample` explicitly replaces the JSON with the sample for the selected mode.
+- JSON comparison is normalized, so changing only whitespace/formatting does not count as a customization.

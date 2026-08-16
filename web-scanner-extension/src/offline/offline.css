@@ -1,0 +1,136 @@
+:root {
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    color: #1f2937;
+    background: #f3f4f6;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-width: 900px;
+}
+
+.page {
+    width: min(1200px, calc(100vw - 48px));
+    margin: 0 auto;
+    padding: 32px 0 56px;
+}
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 24px;
+    align-items: flex-start;
+    margin-bottom: 24px;
+}
+
+.eyebrow {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: #6b7280;
+    margin-bottom: 6px;
+}
+
+h1,
+h2,
+p {
+    margin-top: 0;
+}
+h1 {
+    margin-bottom: 8px;
+    font-size: 28px;
+}
+h2 {
+    margin-bottom: 4px;
+    font-size: 18px;
+}
+
+.meta,
+.card-header p {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+.header-actions,
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.card-header {
+    justify-content: space-between;
+    margin-bottom: 16px;
+}
+
+.button {
+    border: 0;
+    border-radius: 8px;
+    padding: 9px 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #111827;
+    color: white;
+}
+
+.button.secondary {
+    background: white;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.status {
+    min-height: 24px;
+    margin-bottom: 16px;
+    color: #6b7280;
+}
+
+.card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hidden {
+    display: none;
+}
+
+.content,
+.json {
+    margin: 0;
+    padding: 16px;
+    background: #111827;
+    color: #e5e7eb;
+    border-radius: 8px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.65;
+    max-height: 70vh;
+}
+
+.content {
+    font-family: inherit;
+}
+.json {
+    font-family:
+        ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}

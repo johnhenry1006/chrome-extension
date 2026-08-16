@@ -14,6 +14,9 @@ const files = [
     "src/offscreen/offscreen.html",
     "src/offscreen/offscreen.js",
     "src/offscreen/sqlite-client.js",
+    "src/offline/offline.html",
+    "src/offline/offline.js",
+    "src/offline/offline.css",
 ];
 
 for (const relative of files) {

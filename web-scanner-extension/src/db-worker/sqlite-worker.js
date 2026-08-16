@@ -103,6 +103,37 @@ async function handle(request) {
             return { pageId, resultId };
         }
 
+        case "get_saved": {
+            const resultId = Number(request.resultId);
+
+            if (!Number.isInteger(resultId) || resultId <= 0) {
+                throw new Error("Invalid saved record ID.");
+            }
+
+            const rows = db.exec({
+                sql: `
+          SELECT
+            sr.id AS result_id,
+            p.id AS page_id,
+            p.url,
+            p.title,
+            p.domain,
+            p.scanned_at,
+            sr.created_at,
+            sr.data_json
+          FROM scan_results sr
+          INNER JOIN pages p ON p.id = sr.page_id
+          WHERE sr.id = ?
+          LIMIT 1
+        `,
+                bind: [resultId],
+                returnValue: "resultRows",
+                rowMode: "object",
+            });
+
+            return rows[0] || null;
+        }
+
         case "list_saved": {
             const limit = Math.min(
                 Math.max(Number(request.limit) || 20, 1),

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Offline View - Web Data Scanner</title>
+        <link rel="stylesheet" href="./offline.css" />
+    </head>
+    <body>
+        <main class="page">
+            <header class="page-header">
+                <div>
+                    <div class="eyebrow">OFFLINE VIEW</div>
+                    <h1 id="title">Loading saved data...</h1>
+                    <div id="meta" class="meta"></div>
+                </div>
+                <div class="header-actions">
+                    <button id="back" class="button secondary">
+                        Back to Manager
+                    </button>
+                    <button id="openOriginal" class="button secondary" disabled>
+                        Open Original
+                    </button>
+                </div>
+            </header>
+
+            <div id="status" class="status"></div>
+
+            <section id="contentCard" class="card hidden">
+                <div class="card-header">
+                    <div>
+                        <h2>Content</h2>
+                        <p>
+                            Rendered from the data stored in SQLite. No network
+                            request is used.
+                        </p>
+                    </div>
+                    <button id="copyContent" class="button secondary">
+                        Copy Content
+                    </button>
+                </div>
+                <pre id="content" class="content"></pre>
+            </section>
+
+            <section id="dataCard" class="card hidden">
+                <div class="card-header">
+                    <div>
+                        <h2>Saved JSON</h2>
+                        <p>The complete scan result stored in the database.</p>
+                    </div>
+                    <button id="copyJson" class="button secondary">
+                        Copy JSON
+                    </button>
+                </div>
+                <pre id="json" class="json"></pre>
+            </section>
+        </main>
+
+        <script type="module" src="./offline.js"></script>
+    </body>
+</html>

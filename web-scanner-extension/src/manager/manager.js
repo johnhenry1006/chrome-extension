@@ -124,6 +124,7 @@ function render() {
         </div>
         <div class="record-actions">
           <button class="button small secondary open-button" data-url="${escapeHtml(row.url)}">Open</button>
+          <button class="button small secondary offline-button">Offline</button>
         </div>
       `;
 
@@ -133,6 +134,9 @@ function render() {
             record
                 .querySelector(".open-button")
                 .addEventListener("click", () => openUrl(row.url));
+            record
+                .querySelector(".offline-button")
+                .addEventListener("click", () => openOffline(row.result_id));
             group.appendChild(record);
         }
 
@@ -198,6 +202,21 @@ async function openUrl(url) {
 
         if (!response?.success) {
             throw new Error(response?.error || "Failed to open page.");
+        }
+    } catch (error) {
+        status(error?.message || String(error));
+    }
+}
+
+async function openOffline(resultId) {
+    try {
+        const response = await chrome.runtime.sendMessage({
+            type: "OPEN_SAVED_OFFLINE",
+            resultId,
+        });
+
+        if (!response?.success) {
+            throw new Error(response?.error || "Failed to open offline view.");
         }
     } catch (error) {
         status(error?.message || String(error));

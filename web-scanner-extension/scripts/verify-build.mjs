@@ -38,6 +38,9 @@ const required = [
     "src/offscreen/offscreen.html",
     "src/offscreen/offscreen.js",
     "src/offscreen/sqlite-client.js",
+    "src/offline/offline.html",
+    "src/offline/offline.js",
+    "src/offline/offline.css",
     "src/background/service-worker.js",
     "src/content/content.js",
     "src/db-worker/sqlite-worker.js",
@@ -71,6 +74,7 @@ const htmlFiles = [
     "src/popup/popup.html",
     "src/manager/manager.html",
     "src/offscreen/offscreen.html",
+    "src/offline/offline.html",
 ];
 
 for (const htmlFile of htmlFiles) {
