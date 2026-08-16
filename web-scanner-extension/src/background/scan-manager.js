@@ -42,6 +42,7 @@ export async function scanCurrentTab(config) {
         action: "save_scan",
         page: result.page,
         data: result.data,
+        config,
     });
 
     return {

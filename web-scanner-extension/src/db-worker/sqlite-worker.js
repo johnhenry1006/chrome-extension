@@ -41,6 +41,17 @@ async function getDb() {
         CREATE INDEX IF NOT EXISTS idx_results_created_at ON scan_results(created_at);
       `);
 
+            // Keep existing databases backward-compatible when config_json is added.
+            const columns = db.exec({
+                sql: "PRAGMA table_info(scan_results)",
+                returnValue: "resultRows",
+                rowMode: "object",
+            });
+
+            if (!columns.some((column) => column.name === "config_json")) {
+                db.exec("ALTER TABLE scan_results ADD COLUMN config_json TEXT");
+            }
+
             return db;
         })().catch((error) => {
             dbPromise = null;
@@ -83,10 +94,15 @@ async function handle(request) {
 
                 db.exec({
                     sql: `
-            INSERT INTO scan_results (page_id, data_json, created_at)
-            VALUES (?, ?, ?)
+            INSERT INTO scan_results (page_id, data_json, config_json, created_at)
+            VALUES (?, ?, ?, ?)
           `,
-                    bind: [pageId, JSON.stringify(request.data), now],
+                    bind: [
+                        pageId,
+                        JSON.stringify(request.data),
+                        request.config ? JSON.stringify(request.config) : null,
+                        now,
+                    ],
                 });
 
                 resultId = db.selectValue("SELECT last_insert_rowid()");
@@ -120,7 +136,8 @@ async function handle(request) {
             p.domain,
             p.scanned_at,
             sr.created_at,
-            sr.data_json
+            sr.data_json,
+            sr.config_json
           FROM scan_results sr
           INNER JOIN pages p ON p.id = sr.page_id
           WHERE sr.id = ?
@@ -150,7 +167,8 @@ async function handle(request) {
             p.domain,
             p.scanned_at,
             sr.created_at,
-            sr.data_json
+            sr.data_json,
+            sr.config_json
           FROM scan_results sr
           INNER JOIN pages p ON p.id = sr.page_id
           ORDER BY sr.created_at DESC

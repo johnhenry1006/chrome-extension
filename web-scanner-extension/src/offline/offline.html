@@ -29,17 +29,18 @@
             <section id="contentCard" class="card hidden">
                 <div class="card-header">
                     <div>
-                        <h2>Content</h2>
+                        <h2>Rendered Content</h2>
                         <p>
-                            Rendered from the data stored in SQLite. No network
-                            request is used.
+                            Text is shown as preformatted content. HTML fields
+                            are rendered with their saved markup and embedded
+                            styles.
                         </p>
                     </div>
                     <button id="copyContent" class="button secondary">
                         Copy Content
                     </button>
                 </div>
-                <pre id="content" class="content"></pre>
+                <div id="renderedFields" class="rendered-fields"></div>
             </section>
 
             <section id="dataCard" class="card hidden">

@@ -20,7 +20,7 @@ body {
 }
 
 .page {
-    width: min(1200px, calc(100vw - 48px));
+    width: min(1400px, calc(100vw - 48px));
     margin: 0 auto;
     padding: 32px 0 56px;
 }
@@ -43,6 +43,7 @@ body {
 
 h1,
 h2,
+h3,
 p {
     margin-top: 0;
 }
@@ -54,6 +55,10 @@ h2 {
     margin-bottom: 4px;
     font-size: 18px;
 }
+h3 {
+    margin-bottom: 0;
+    font-size: 15px;
+}
 
 .meta,
 .card-header p {
@@ -62,7 +67,8 @@ h2 {
 }
 
 .header-actions,
-.card-header {
+.card-header,
+.field-header {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -113,7 +119,86 @@ h2 {
     display: none;
 }
 
-.content,
+.rendered-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.scan-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 14px;
+    background: #fafafa;
+}
+
+.item-heading {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4b5563;
+    margin-bottom: 12px;
+}
+
+.field-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 9px;
+    overflow: hidden;
+    margin-top: 12px;
+}
+
+.field-header {
+    min-height: 42px;
+    padding: 9px 12px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.type-badge,
+.index-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.index-badge {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.field-value {
+    margin: 0;
+    padding: 16px;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.65;
+    max-height: 70vh;
+    min-height: 48px;
+}
+
+.field-text,
+.field-textWithBreaks,
+.field-attribute,
+.field-value {
+    font-family: inherit;
+}
+
+.html-preview {
+    display: block;
+    width: 100%;
+    min-height: 40vh;
+    height: 110vh;
+    border: 0;
+    background: white;
+}
+
 .json {
     margin: 0;
     padding: 16px;
@@ -125,12 +210,15 @@ h2 {
     overflow-wrap: anywhere;
     line-height: 1.65;
     max-height: 70vh;
-}
-
-.content {
-    font-family: inherit;
-}
-.json {
     font-family:
         ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.fallback-message {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    color: #92400e;
+    margin-bottom: 12px;
 }

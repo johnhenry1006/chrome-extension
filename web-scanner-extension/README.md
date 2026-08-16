@@ -43,3 +43,33 @@ The popup preserves custom Fields JSON when the Mode changes.
 - When custom JSON is preserved, `Reset Fields Sample` becomes available.
 - Clicking `Reset Fields Sample` explicitly replaces the JSON with the sample for the selected mode.
 - JSON comparison is normalized, so changing only whitespace/formatting does not count as a customization.
+
+## Offline Reader.
+
+Scan
+ │
+ ├── data
+ │    ├── text
+ │    ├── textWithBreaks
+ │    └── html
+ │
+ └── config
+      ├── mode
+      ├── selector
+      └── fields
+             │
+             ▼
+        SQLite / OPFS
+             │
+             ▼
+       Offline Reader
+             │
+      ┌──────┴───────┐
+      ▼              ▼
+    Text            HTML
+      │              │
+      ▼              ▼
+   <pre>       Sanitized HTML
+                    │
+                    ▼
+               Sandbox iframe
