@@ -25,8 +25,23 @@
             <label>Selector</label>
             <input id="selector" value="#chapter-c" />
 
-            <label>Fields JSON</label>
-            <textarea id="fields" rows="8">
+            <div class="field-header">
+                <div class="field-title">
+                    <label for="fields">Fields JSON</label>
+                    <span id="fieldsHint"
+                        >Uses the sample for the selected mode.</span
+                    >
+                </div>
+                <button
+                    id="resetFields"
+                    class="secondary-button"
+                    type="button"
+                    hidden
+                >
+                    Reset Fields Sample
+                </button>
+            </div>
+            <textarea id="fields" rows="10">
 {
   "content": {
     "type": "textWithBreaks"

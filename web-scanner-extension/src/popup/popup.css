@@ -76,3 +76,40 @@ pre {
     border-radius: 6px;
     font-size: 11px;
 }
+
+.field-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 10px 0 5px;
+}
+.field-header label {
+    margin: 0;
+}
+.field-header span {
+    color: #777;
+    font-size: 10px;
+    font-weight: 400;
+}
+
+.field-title {
+    min-width: 0;
+}
+.field-title label {
+    margin: 0 0 3px;
+}
+#fieldsHint.customized {
+    color: #a15c00;
+}
+.secondary-button {
+    background: #fff;
+    color: #222;
+    border: 1px solid #bbb;
+    font-size: 10px;
+    padding: 5px 7px;
+    white-space: nowrap;
+}
+.secondary-button:hover {
+    background: #f0f0f0;
+}

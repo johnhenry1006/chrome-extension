@@ -1,6 +1,64 @@
 const $ = (id) => document.getElementById(id);
 
 let last = null;
+let lastAppliedSample = null;
+
+const FIELD_SAMPLES = {
+    single: {
+        content: {
+            type: "textWithBreaks",
+        },
+    },
+    list: {
+        title: {
+            selector: ".title",
+            type: "text",
+        },
+        content: {
+            selector: ".content",
+            type: "textWithBreaks",
+        },
+    },
+};
+
+function sampleJson(mode) {
+    const sample = FIELD_SAMPLES[mode] || FIELD_SAMPLES.single;
+    return JSON.stringify(sample, null, 2);
+}
+
+function normalizeJson(value) {
+    try {
+        return JSON.stringify(JSON.parse(value));
+    } catch {
+        return null;
+    }
+}
+
+function isFieldsCustomized() {
+    const current = normalizeJson($("fields").value);
+
+    if (current === null) {
+        return true;
+    }
+
+    return current !== lastAppliedSample;
+}
+
+function updateFieldsState() {
+    const customized = isFieldsCustomized();
+    $("resetFields").hidden = !customized;
+    $("fieldsHint").textContent = customized
+        ? "Custom fields preserved. Reset to use the mode sample."
+        : "Uses the sample for the selected mode.";
+
+    $("fieldsHint").classList.toggle("customized", customized);
+}
+
+function setFieldsSample(mode) {
+    $("fields").value = sampleJson(mode);
+    lastAppliedSample = normalizeJson($("fields").value);
+    updateFieldsState();
+}
 
 function config() {
     let fields;
@@ -26,6 +84,37 @@ function status(message) {
 function output(value) {
     $("output").textContent = JSON.stringify(value, null, 2);
 }
+
+$("mode").addEventListener("change", () => {
+    const mode = $("mode").value;
+
+    if (isFieldsCustomized()) {
+        updateFieldsState();
+        status(
+            `Mode changed to ${mode === "single" ? "Single" : "List"}. ` +
+                "Your custom Fields JSON was preserved.",
+        );
+        return;
+    }
+
+    setFieldsSample(mode);
+    status(
+        `Mode changed to ${mode === "single" ? "Single" : "List"}. ` +
+            "Fields JSON sample updated.",
+    );
+});
+
+$("fields").addEventListener("input", () => {
+    updateFieldsState();
+});
+
+$("resetFields").addEventListener("click", () => {
+    const mode = $("mode").value;
+    setFieldsSample(mode);
+    status(
+        `Fields JSON reset to the ${mode === "single" ? "Single" : "List"} sample.`,
+    );
+});
 
 $("scan").onclick = async () => {
     try {
@@ -131,3 +220,6 @@ $("copyConfig").onclick = async () => {
         status(error?.message || String(error));
     }
 };
+
+lastAppliedSample = normalizeJson($("fields").value);
+updateFieldsState();
