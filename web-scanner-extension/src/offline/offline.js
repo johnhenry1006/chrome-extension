@@ -322,6 +322,43 @@ async function openOffline(resultId, filterMode = navigationFilterMode()) {
     await chrome.tabs.create({ url });
 }
 
+async function navigateOffline(
+    resultId,
+    filterMode = navigationFilterMode(),
+    { replace = false } = {},
+) {
+    if (!resultId) return;
+
+    const params = new URLSearchParams({
+        resultId: String(Number(resultId)),
+        filter: filterMode,
+    });
+
+    const url = `?${params.toString()}`;
+
+    if (replace) {
+        history.replaceState(
+            {
+                resultId: Number(resultId),
+                filter: filterMode,
+            },
+            "",
+            url,
+        );
+    } else {
+        history.pushState(
+            {
+                resultId: Number(resultId),
+                filter: filterMode,
+            },
+            "",
+            url,
+        );
+    }
+
+    await load();
+}
+
 async function load() {
     const params = new URLSearchParams(location.search);
     const resultId = Number(params.get("resultId"));
@@ -409,12 +446,40 @@ $("openOriginal").addEventListener("click", async () => {
 
 $("previousPage").addEventListener("click", async () => {
     if (!navigation?.previous) return;
-    await openOffline(navigation.previous.result_id, navigationFilterMode());
+
+    try {
+        status("Loading previous page...");
+
+        await navigateOffline(
+            navigation.previous.result_id,
+            navigationFilterMode(),
+        );
+    } catch (error) {
+        status(error?.message || String(error));
+    }
 });
 
 $("nextPage").addEventListener("click", async () => {
     if (!navigation?.next) return;
-    await openOffline(navigation.next.result_id, navigationFilterMode());
+
+    try {
+        status("Loading next page...");
+
+        await navigateOffline(
+            navigation.next.result_id,
+            navigationFilterMode(),
+        );
+    } catch (error) {
+        status(error?.message || String(error));
+    }
+});
+
+window.addEventListener("popstate", async () => {
+    try {
+        await load();
+    } catch (error) {
+        status(error?.message || String(error));
+    }
 });
 
 $("navigationFilter").addEventListener("change", async () => {
