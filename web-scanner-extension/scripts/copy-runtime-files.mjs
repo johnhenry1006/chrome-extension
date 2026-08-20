@@ -17,6 +17,11 @@ const files = [
     "src/offline/offline.html",
     "src/offline/offline.js",
     "src/offline/offline.css",
+    "src/stories/stories.html",
+    "src/stories/stories.js",
+    "src/stories/stories.css",
+    "src/stories/detail.html",
+    "src/stories/detail.js",
 ];
 
 for (const relative of files) {

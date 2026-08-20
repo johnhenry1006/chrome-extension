@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Stories / Groups</title>
+        <link rel="stylesheet" href="./stories.css" />
+    </head>
+    <body>
+        <main class="page">
+            <header class="page-header">
+                <div>
+                    <div class="eyebrow">LIBRARY</div>
+                    <h1>Stories / Groups</h1>
+                    <p>Your saved stories grouped by domain and story key.</p>
+                </div>
+                <button id="refresh" class="button secondary">Refresh</button>
+            </header>
+            <section class="toolbar">
+                <input
+                    id="search"
+                    type="search"
+                    placeholder="Search story or domain..."
+                />
+                <label class="sort-control"
+                    ><span>Sort by</span
+                    ><select id="sortBy">
+                        <option value="updated-desc">
+                            Last saved (newest)
+                        </option>
+                        <option value="updated-asc">Last saved (oldest)</option>
+                        <option value="name-asc">Name (A → Z)</option>
+                        <option value="name-desc">Name (Z → A)</option>
+                        <option value="pages-desc">Most pages</option>
+                        <option value="pages-asc">Fewest pages</option>
+                    </select></label
+                >
+                <span id="summary" class="summary">Loading...</span>
+            </section>
+            <div id="status" class="status"></div>
+            <section id="stories" class="story-grid"></section>
+        </main>
+        <script type="module" src="./stories.js"></script>
+    </body>
+</html>

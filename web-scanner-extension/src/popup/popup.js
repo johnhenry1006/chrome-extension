@@ -261,6 +261,12 @@ $("manageSaved").onclick = async () => {
     });
 };
 
+$("manageStories").onclick = async () => {
+    await chrome.tabs.create({
+        url: chrome.runtime.getURL("src/stories/stories.html"),
+    });
+};
+
 $("viewSaved").onclick = async () => {
     try {
         status("Loading saved data...");

@@ -239,6 +239,32 @@ function renderConfiguredData(data, config) {
     });
 }
 
+async function updateReaderState({ isRead, isBookmarked }) {
+    if (!savedRow?.result_id) return null;
+    const response = await chrome.runtime.sendMessage({
+        type: "DB_TOGGLE_READER_STATE",
+        resultId: savedRow.result_id,
+        isRead,
+        isBookmarked,
+    });
+    if (!response?.success)
+        throw new Error(response?.error || "Failed to update reader state.");
+    if (savedRow) {
+        savedRow.is_read = response.result.isRead ? 1 : 0;
+        savedRow.is_bookmarked = response.result.isBookmarked ? 1 : 0;
+    }
+    renderReaderState();
+    return response.result;
+}
+
+function renderReaderState() {
+    const button = $("bookmarkPage");
+    if (!button) return;
+    const bookmarked = Number(savedRow?.is_bookmarked) === 1;
+    button.textContent = bookmarked ? "★ Bookmarked" : "☆ Bookmark";
+    button.disabled = !savedRow;
+}
+
 function navigationFilterMode() {
     const value = $("navigationFilter").value;
     return [
@@ -310,18 +336,6 @@ async function loadNavigation(resultId) {
     renderNavigation();
 }
 
-async function openOffline(resultId, filterMode = navigationFilterMode()) {
-    if (!resultId) return;
-    const params = new URLSearchParams({
-        resultId: String(Number(resultId)),
-        filter: filterMode,
-    });
-    const url = chrome.runtime.getURL(
-        `src/offline/offline.html?${params.toString()}`,
-    );
-    await chrome.tabs.create({ url });
-}
-
 async function navigateOffline(
     resultId,
     filterMode = navigationFilterMode(),
@@ -338,19 +352,13 @@ async function navigateOffline(
 
     if (replace) {
         history.replaceState(
-            {
-                resultId: Number(resultId),
-                filter: filterMode,
-            },
+            { resultId: Number(resultId), filter: filterMode },
             "",
             url,
         );
     } else {
         history.pushState(
-            {
-                resultId: Number(resultId),
-                filter: filterMode,
-            },
+            { resultId: Number(resultId), filter: filterMode },
             "",
             url,
         );
@@ -399,6 +407,16 @@ async function load() {
             );
         }
 
+        // Opening a chapter marks it as read, while preserving its bookmark state.
+        if (Number(savedRow.is_read) !== 1) {
+            await updateReaderState({
+                isRead: true,
+                isBookmarked: Number(savedRow.is_bookmarked) === 1,
+            });
+        } else {
+            renderReaderState();
+        }
+
         const data = parseData(savedRow);
         const config = parseConfig(savedRow);
 
@@ -439,6 +457,18 @@ $("back").addEventListener("click", async () => {
     });
 });
 
+$("bookmarkPage").addEventListener("click", async () => {
+    if (!savedRow) return;
+    try {
+        await updateReaderState({
+            isRead: Number(savedRow.is_read) === 1,
+            isBookmarked: Number(savedRow.is_bookmarked) !== 1,
+        });
+    } catch (error) {
+        status(error?.message || String(error));
+    }
+});
+
 $("openOriginal").addEventListener("click", async () => {
     if (!savedRow?.url) return;
     await chrome.tabs.create({ url: savedRow.url });
@@ -449,7 +479,6 @@ $("previousPage").addEventListener("click", async () => {
 
     try {
         status("Loading previous page...");
-
         await navigateOffline(
             navigation.previous.result_id,
             navigationFilterMode(),
@@ -464,7 +493,6 @@ $("nextPage").addEventListener("click", async () => {
 
     try {
         status("Loading next page...");
-
         await navigateOffline(
             navigation.next.result_id,
             navigationFilterMode(),

@@ -41,6 +41,11 @@ const required = [
     "src/offline/offline.html",
     "src/offline/offline.js",
     "src/offline/offline.css",
+    "src/stories/stories.html",
+    "src/stories/stories.js",
+    "src/stories/stories.css",
+    "src/stories/detail.html",
+    "src/stories/detail.js",
     "src/background/service-worker.js",
     "src/content/content.js",
     "src/db-worker/sqlite-worker.js",
@@ -75,6 +80,8 @@ const htmlFiles = [
     "src/manager/manager.html",
     "src/offscreen/offscreen.html",
     "src/offline/offline.html",
+    "src/stories/stories.html",
+    "src/stories/detail.html",
 ];
 
 for (const htmlFile of htmlFiles) {

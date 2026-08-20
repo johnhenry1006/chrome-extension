@@ -349,3 +349,7 @@ $("sortBy").addEventListener("change", applySearch);
 $("deleteSelected").addEventListener("click", deleteSelected);
 
 load();
+
+$("stories").addEventListener("click", () => {
+    location.href = chrome.runtime.getURL("src/stories/stories.html");
+});

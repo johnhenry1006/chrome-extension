@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+        <title>Story Detail</title>
+        <link rel="stylesheet" href="./stories.css" />
+    </head>
+    <body>
+        <main class="page">
+            <header class="page-header">
+                <div>
+                    <button id="back" class="button secondary">
+                        ← Stories
+                    </button>
+                    <div class="eyebrow" style="margin-top: 16px">
+                        STORY DETAIL
+                    </div>
+                    <h1 id="title">Loading...</h1>
+                    <p id="domain"></p>
+                </div>
+                <div>
+                    <button id="edit" class="button secondary">
+                        Edit Story
+                    </button>
+                </div>
+            </header>
+            <section id="status" class="status"></section>
+            <section id="hero" class="detail-hero"></section>
+            <section id="stats" class="detail-stats"></section>
+            <section class="card" id="editor" hidden>
+                <div class="card-head"><h2>Story Metadata</h2></div>
+                <div class="form-grid">
+                    <label>Name<input id="name" /></label
+                    ><label>Author<input id="author" /></label
+                    ><label>Cover URL<input id="cover" /></label
+                    ><label
+                        >Categories (comma separated)<input
+                            id="categories" /></label
+                    ><label class="full"
+                        >Description<textarea
+                            id="description"
+                            rows="5"
+                        ></textarea>
+                    </label>
+                </div>
+                <div class="actions">
+                    <button id="save" class="button">Save</button
+                    ><button id="cancel" class="button secondary">
+                        Cancel
+                    </button>
+                </div>
+            </section>
+            <section class="card">
+                <div class="card-head">
+                    <div>
+                        <h2>Chapters / Pages</h2>
+                        <p id="pageSummary"></p>
+                    </div>
+                    <button id="resume" class="button">Resume</button>
+                </div>
+                <div id="pages" class="chapter-list"></div>
+            </section>
+        </main>
+        <script type="module" src="./detail.js"></script>
+    </body>
+</html>
