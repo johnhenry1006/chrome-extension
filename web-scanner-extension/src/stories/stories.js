@@ -61,4 +61,11 @@ function render() {
 $("search").addEventListener("input", load);
 $("sortBy").addEventListener("change", load);
 $("refresh").addEventListener("click", load);
+
+$("back").addEventListener("click", async () => {
+    await chrome.tabs.create({
+        url: chrome.runtime.getURL("src/manager/manager.html"),
+    });
+});
+
 load();

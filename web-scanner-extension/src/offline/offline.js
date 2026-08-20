@@ -319,6 +319,34 @@ function renderNavigation() {
     $("nextPage").title = next
         ? `Next: ${next.title || next.url}`
         : "No next page";
+
+    const pageSelect = $("pageSelect");
+    pageSelect.replaceChildren();
+    const pages = Array.isArray(navigation?.pages) ? navigation.pages : [];
+
+    if (!pages.length) {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "No pages";
+        pageSelect.appendChild(option);
+        pageSelect.disabled = true;
+        return;
+    }
+
+    pages.forEach((page) => {
+        const option = document.createElement("option");
+        option.value = String(page.result_id);
+        const title = String(page.title || "").trim();
+        option.textContent = title
+            ? `Page ${page.position} — ${title}`
+            : `Page ${page.position}`;
+        pageSelect.appendChild(option);
+    });
+
+    pageSelect.value = String(
+        savedRow?.result_id || navigation?.current?.result_id || "",
+    );
+    pageSelect.disabled = pages.length === 0;
 }
 
 async function loadNavigation(resultId) {
@@ -516,6 +544,24 @@ $("navigationFilter").addEventListener("change", async () => {
         status("Updating page navigation...");
         await loadNavigation(savedRow.result_id);
         status("");
+    } catch (error) {
+        status(error?.message || String(error));
+    }
+});
+
+$("pageSelect").addEventListener("change", async () => {
+    const resultId = Number($("pageSelect").value);
+    if (
+        !Number.isInteger(resultId) ||
+        resultId <= 0 ||
+        resultId === Number(savedRow?.result_id)
+    ) {
+        return;
+    }
+
+    try {
+        status("Loading selected page...");
+        await navigateOffline(resultId, navigationFilterMode());
     } catch (error) {
         status(error?.message || String(error));
     }

@@ -127,6 +127,36 @@ async function getDb() {
         CREATE INDEX IF NOT EXISTS idx_results_created_at ON scan_results(created_at);
       `);
 
+            // Migrate story_groups as well. CREATE TABLE IF NOT EXISTS does not add
+            // columns to an existing database created by an older extension version.
+            let storyColumns = db.exec({
+                sql: "PRAGMA table_info(story_groups)",
+                returnValue: "resultRows",
+                rowMode: "object",
+            });
+
+            const storyColumnDefaults = {
+                cover_url: "TEXT",
+                description: "TEXT",
+                author: "TEXT",
+                categories_json: "TEXT",
+            };
+
+            for (const [name, type] of Object.entries(storyColumnDefaults)) {
+                if (!storyColumns.some((column) => column.name === name)) {
+                    db.exec(
+                        `ALTER TABLE story_groups ADD COLUMN ${name} ${type}`,
+                    );
+                }
+            }
+
+            // Re-read after migration.
+            storyColumns = db.exec({
+                sql: "PRAGMA table_info(story_groups)",
+                returnValue: "resultRows",
+                rowMode: "object",
+            });
+
             let columns = db.exec({
                 sql: "PRAGMA table_info(scan_results)",
                 returnValue: "resultRows",
@@ -195,6 +225,10 @@ async function getDb() {
             }
 
             db.exec(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_story_groups_domain_key ON story_groups(domain, group_key)",
+            );
+
+            db.exec(
                 "CREATE INDEX IF NOT EXISTS idx_results_type_key ON scan_results(scan_type_key)",
             );
             db.exec(
@@ -204,60 +238,59 @@ async function getDb() {
                 "CREATE INDEX IF NOT EXISTS idx_results_group_domain ON scan_results(group_key, page_id)",
             );
 
-            // Rebuild the Story/Group index from saved records. This makes the
-            // feature resilient when upgrading from older versions where
-            // story_groups did not exist yet or was only partially populated.
             const groupedRows = db.exec({
                 sql: `
-          SELECT
-            sr.group_key,
-            MAX(NULLIF(TRIM(sr.group_name), '')) AS group_name,
-            lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) AS domain,
-            MIN(sr.created_at) AS created_at,
-            MAX(sr.created_at) AS updated_at
+          SELECT sr.group_key, MAX(sr.group_name) AS group_name,
+                 MIN(lower(replace(trim(COALESCE(p.domain, '')), 'www.', ''))) AS domain,
+                 MIN(sr.created_at) AS created_at, MAX(sr.created_at) AS updated_at
           FROM scan_results sr
           INNER JOIN pages p ON p.id = sr.page_id
-          WHERE NULLIF(TRIM(sr.group_key), '') IS NOT NULL
-            AND NULLIF(TRIM(sr.group_name), '') IS NOT NULL
-            AND lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) <> ''
-          GROUP BY
-            sr.group_key,
-            lower(replace(trim(COALESCE(p.domain, '')), 'www.', ''))
+          WHERE sr.group_key IS NOT NULL AND sr.group_name IS NOT NULL
+          GROUP BY sr.group_key, lower(replace(trim(COALESCE(p.domain, '')), 'www.', ''))
         `,
                 returnValue: "resultRows",
                 rowMode: "object",
             });
 
             for (const row of groupedRows) {
-                db.exec({
-                    sql: `
-            INSERT INTO story_groups (domain, group_key, group_name, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(domain, group_key) DO UPDATE SET
-              group_name = excluded.group_name,
-              updated_at = MAX(story_groups.updated_at, excluded.updated_at)
-          `,
-                    bind: [
-                        normalizeDomain(row.domain),
-                        row.group_key,
-                        normalizeGroupName(row.group_name),
-                        Number(row.created_at) || Date.now(),
-                        Number(row.updated_at) || Date.now(),
-                    ],
-                });
-            }
+                const storyDomain = row.domain || "unknown";
+                const existingStory = db.exec({
+                    sql: `SELECT id, updated_at FROM story_groups WHERE domain = ? AND group_key = ? LIMIT 1`,
+                    bind: [storyDomain, row.group_key],
+                    returnValue: "resultRows",
+                    rowMode: "object",
+                })[0];
 
-            // Remove groups that no longer have any saved records.
-            db.exec(`
-        DELETE FROM story_groups
-        WHERE NOT EXISTS (
-          SELECT 1
-          FROM scan_results sr
-          INNER JOIN pages p ON p.id = sr.page_id
-          WHERE sr.group_key = story_groups.group_key
-            AND lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) = story_groups.domain
-        )
-      `);
+                if (existingStory) {
+                    db.exec({
+                        sql: `
+              UPDATE story_groups
+              SET group_name = ?,
+                  updated_at = MAX(COALESCE(updated_at, 0), ?)
+              WHERE id = ?
+            `,
+                        bind: [
+                            row.group_name,
+                            row.updated_at || Date.now(),
+                            existingStory.id,
+                        ],
+                    });
+                } else {
+                    db.exec({
+                        sql: `
+              INSERT INTO story_groups (domain, group_key, group_name, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?)
+            `,
+                        bind: [
+                            storyDomain,
+                            row.group_key,
+                            row.group_name,
+                            row.created_at || Date.now(),
+                            row.updated_at || Date.now(),
+                        ],
+                    });
+                }
+            }
 
             return db;
         })().catch((error) => {
@@ -571,32 +604,65 @@ async function handle(request) {
                     "name-desc":
                         "sg.group_name COLLATE NOCASE DESC, sg.id DESC",
                     "pages-desc":
-                        "page_count DESC, sg.group_name COLLATE NOCASE ASC",
+                        "page_count DESC, sg.group_name COLLATE NOCASE ASC, sg.id ASC",
                     "pages-asc":
-                        "page_count ASC, sg.group_name COLLATE NOCASE ASC",
+                        "page_count ASC, sg.group_name COLLATE NOCASE ASC, sg.id ASC",
                 }[sort] || "sg.updated_at DESC, sg.id DESC";
+
             const where = search
-                ? `WHERE lower(sg.group_name) LIKE ? OR lower(sg.domain) LIKE ?`
+                ? `WHERE lower(COALESCE(sg.group_name, '')) LIKE ?
+            OR lower(COALESCE(sg.domain, '')) LIKE ?`
                 : "";
             const bind = search
                 ? [`%${search}%`, `%${search}%`, limit]
                 : [limit];
+
             return db.exec({
                 sql: `
-          SELECT sg.id AS story_id, sg.domain, sg.group_key, sg.group_name,
-                 sg.cover_url, sg.description, sg.author, sg.categories_json,
-                 sg.created_at, sg.updated_at,
-                 COUNT(DISTINCT sr.id) AS page_count,
-                 COUNT(DISTINCT CASE WHEN COALESCE(rs.is_read, 0) = 1 THEN sr.id END) AS read_count,
-                 COUNT(DISTINCT CASE WHEN COALESCE(rs.is_bookmarked, 0) = 1 THEN sr.id END) AS bookmark_count,
-                 MAX(sr.created_at) AS last_saved_at
+          SELECT
+            sg.id AS story_id,
+            sg.domain,
+            sg.group_key,
+            sg.group_name,
+            sg.cover_url,
+            sg.description,
+            sg.author,
+            sg.categories_json,
+            sg.created_at,
+            sg.updated_at,
+            COUNT(DISTINCT sr.id) AS page_count,
+            COALESCE(SUM(
+              CASE WHEN COALESCE(rs.is_read, 0) = 1 THEN 1 ELSE 0 END
+            ), 0) AS read_count,
+            COALESCE(SUM(
+              CASE WHEN COALESCE(rs.is_bookmarked, 0) = 1 THEN 1 ELSE 0 END
+            ), 0) AS bookmark_count,
+            MAX(sr.created_at) AS last_saved_at
           FROM story_groups sg
-          LEFT JOIN scan_results sr ON sr.group_key = sg.group_key
-          LEFT JOIN pages p ON p.id = sr.page_id
-            AND lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) = sg.domain
-          LEFT JOIN reader_states rs ON rs.result_id = sr.id
+          LEFT JOIN scan_results sr
+            ON sr.group_key = sg.group_key
+           AND EXISTS (
+             SELECT 1 FROM pages sp
+             WHERE sp.id = sr.page_id
+               AND lower(replace(trim(COALESCE(sp.domain, '')), 'www.', '')) = sg.domain
+           )
+          LEFT JOIN pages p
+            ON p.id = sr.page_id
+           AND lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) = sg.domain
+          LEFT JOIN reader_states rs
+            ON rs.result_id = sr.id
           ${where}
-          GROUP BY sg.id
+          GROUP BY
+            sg.id,
+            sg.domain,
+            sg.group_key,
+            sg.group_name,
+            sg.cover_url,
+            sg.description,
+            sg.author,
+            sg.categories_json,
+            sg.created_at,
+            sg.updated_at
           ORDER BY ${orderBy}
           LIMIT ?
         `,
@@ -616,12 +682,14 @@ async function handle(request) {
           SELECT sg.id AS story_id, sg.domain, sg.group_key, sg.group_name,
                  sg.cover_url, sg.description, sg.author, sg.categories_json,
                  sg.created_at, sg.updated_at,
-                 COUNT(DISTINCT sr.id) AS page_count,
-                 COUNT(DISTINCT CASE WHEN COALESCE(rs.is_read, 0) = 1 THEN sr.id END) AS read_count,
-                 COUNT(DISTINCT CASE WHEN COALESCE(rs.is_bookmarked, 0) = 1 THEN sr.id END) AS bookmark_count,
+                 COUNT(p.id) AS page_count,
+                 SUM(CASE WHEN p.id IS NOT NULL AND COALESCE(rs.is_read, 0) = 1 THEN 1 ELSE 0 END) AS read_count,
+                 SUM(CASE WHEN p.id IS NOT NULL AND COALESCE(rs.is_bookmarked, 0) = 1 THEN 1 ELSE 0 END) AS bookmark_count,
                  MAX(sr.created_at) AS last_saved_at
           FROM story_groups sg
           LEFT JOIN scan_results sr ON sr.group_key = sg.group_key
+            AND EXISTS (SELECT 1 FROM pages sp WHERE sp.id = sr.page_id
+              AND lower(replace(trim(COALESCE(sp.domain, '')), 'www.', '')) = sg.domain)
           LEFT JOIN pages p ON p.id = sr.page_id
             AND lower(replace(trim(COALESCE(p.domain, '')), 'www.', '')) = sg.domain
           LEFT JOIN reader_states rs ON rs.result_id = sr.id
